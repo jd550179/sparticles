@@ -115,6 +115,7 @@ class EventsDataset(InMemoryDataset):
         pre_filter (callable, optional): A function that takes in a `torch_geometric.data.Data` object and returns a boolean value, indicating whether the data object should be included in the final dataset. Defaults to None.
         download_type: If it is set to 1, it extracts all the h5 files in signal folder, if it is set to 2, it extracts the h5 file with all mixed signals.
         signal_filename: The name of the signal file to be processed.
+        useful_cols: columns to be used in the training 
     """
     def __init__(
             self,
@@ -127,7 +128,9 @@ class EventsDataset(InMemoryDataset):
             pre_transform=None,
             pre_filter=None,
             download_type: int = 2,
-            signal_filename: str = 'Wh_hbb_fullMix.h5'):  # Added signal_filename argument
+            signal_filename: str = 'Wh_hbb_fullMix.h5', # Added signal_filename argument
+            useful_cols: list = USEFUL_COLS,
+            normalize: bool = False):  
 
         self.url = url
         self.delete_raw_archive = delete_raw_archive
@@ -136,6 +139,8 @@ class EventsDataset(InMemoryDataset):
         self.download_type = download_type  # Store download type
         self.signal_filename = signal_filename  # Store signal filename
         self.subset_string = '_'.join([f'{k}_{v}' for k, v in sorted(self.event_subsets.items())])
+        self.useful_cols = useful_cols
+        self.normalize = normalize
 
         super().__init__(root, transform, pre_transform, pre_filter)
         self.data, self.slices = torch.load(self.processed_paths[0])
@@ -242,7 +247,9 @@ class EventsDataset(InMemoryDataset):
                 # Read data into pandas dataframe and filter out useless columns.
                 graphs = pd.read_hdf(h5_file)
                 graphs = graphs.apply(convert_vec) #vectorizing to get rid of dict
-                # graphs=(graphs-graphs.min())/(graphs.max()-graphs.min()) #normalization
+
+                if self.normalize:
+                    graphs=(graphs-graphs.min())/(graphs.max()-graphs.min()) #normalization
     
                 # And then take the remainder of the function from the original sparticles i.e
     
@@ -253,7 +260,7 @@ class EventsDataset(InMemoryDataset):
 
 
                 # Rearrange columns to have the same order as USEFUL_COLS and create index column.
-                graphs = graphs[USEFUL_COLS].reset_index()
+                graphs = graphs[self.useful_cols].reset_index()
     
                 # Shuffle the dataframe and possibly keep only part of it.
                 graphs = graphs.sample(n=self.event_subsets[event_type], random_state=RANDOM_STATE)
@@ -292,3 +299,7 @@ class EventsDataset(InMemoryDataset):
 
             data, slices = self.collate(data_list)
             torch.save((data, slices), self.processed_paths[0])
+    
+
+    def normalize(self):
+        graphs=(graphs-graphs.min())/(graphs.max()-graphs.min()) #normalization
