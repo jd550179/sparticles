@@ -130,6 +130,7 @@ class EventsDataset(InMemoryDataset):
             download_type: int = 2,
             signal_filename: str = 'Wh_hbb_fullMix.h5', # Added signal_filename argument
             useful_cols: list = USEFUL_COLS,
+            n_particles: int = 6,
             normalize: bool = False):  
 
         self.url = url
@@ -140,6 +141,7 @@ class EventsDataset(InMemoryDataset):
         self.signal_filename = signal_filename  # Store signal filename
         self.subset_string = '_'.join([f'{k}_{v}' for k, v in sorted(self.event_subsets.items())])
         self.useful_cols = useful_cols
+        self.n_particles = n_particles
         self.normalize = normalize
 
         super().__init__(root, transform, pre_transform, pre_filter)
@@ -271,7 +273,7 @@ class EventsDataset(InMemoryDataset):
                     graph_features = row[1:]
     
                     # create tensor of node features
-                    x = torch.from_numpy(graph_features).reshape(6, -1)
+                    x = torch.from_numpy(graph_features).reshape(self.n_particles, -1)
     
                     # some graphs have trash nodes with -99 values for the Pt column. We remove the nodes.
                     x = x[x[:,0]>0]
